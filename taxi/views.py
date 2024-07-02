@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, redirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.views import generic
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -108,17 +108,13 @@ class DriverDetailView(LoginRequiredMixin, generic.DetailView):
     queryset = Driver.objects.all().prefetch_related("cars__manufacturer")
 
 
-@login_required
-def assign_driver(request: HttpRequest, pk: int) -> HttpResponse:
-    driver = request.user
-    car = Car.objects.get(id=pk)
-    car.drivers.add(driver)
-    return redirect("taxi:car-detail", pk=pk)
-
-
-@login_required
-def delete_driver(request: HttpRequest, pk: int) -> HttpResponse:
-    driver = request.user
-    car = Car.objects.get(id=pk)
-    car.drivers.remove(driver)
-    return redirect("taxi:car-detail", pk=pk)
+class AssignUserToCar(LoginRequiredMixin, generic.View):
+    def post(self, request, pk):
+        car = Car.objects.get(pk=pk)
+        if request.user not in car.drivers.all():
+            car.drivers.add(request.user)
+        else:
+            car.drivers.remove(request.user)
+        return HttpResponseRedirect(
+            reverse_lazy("taxi:car-detail", kwargs={"pk": pk})
+        )
